@@ -88,7 +88,7 @@
 			>
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
-					class="w-5 h-5 text-slate-300"
+					class="w-5 h-5 text-slate-200 dark:text-slate-400"
 					viewBox="0 0 24 24"
 					fill="none"
 					stroke="currentColor"

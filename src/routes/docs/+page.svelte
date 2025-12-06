@@ -48,7 +48,7 @@
 				<div class="w-16 h-16 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-4">
 					<span class="text-2xl font-bold text-primary">1</span>
 				</div>
-				<h3 class="text-xl font-semibold mb-2">{t('home.step1Title')}</h3>
+				<h4 class="text-xl font-semibold mb-2">{t('home.step1Title')}</h4>
 				<p class="text-muted-foreground">
 					{t('home.step1Desc')}
 				</p>
@@ -57,7 +57,7 @@
 				<div class="w-16 h-16 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-4">
 					<span class="text-2xl font-bold text-primary">2</span>
 				</div>
-				<h3 class="text-xl font-semibold mb-2">{t('home.step2Title')}</h3>
+				<h4 class="text-xl font-semibold mb-2">{t('home.step2Title')}</h4>
 				<p class="text-muted-foreground">
 					{t('home.step2Desc')}
 				</p>
@@ -66,7 +66,7 @@
 				<div class="w-16 h-16 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-4">
 					<span class="text-2xl font-bold text-primary">3</span>
 				</div>
-				<h3 class="text-xl font-semibold mb-2">{t('home.step3Title')}</h3>
+				<h4 class="text-xl font-semibold mb-2">{t('home.step3Title')}</h4>
 				<p class="text-muted-foreground">
 					{t('home.step3Desc')}
 				</p>
@@ -96,7 +96,7 @@
 							/>
 						</svg>
 					</div>
-					<h3 class="text-xl font-semibold mb-2">{t('home.speed')}</h3>
+					<h4 class="text-xl font-semibold mb-2">{t('home.speed')}</h4>
 					<p class="text-muted-foreground">
 						{t('home.speedDesc')}
 					</p>
@@ -120,7 +120,7 @@
 							/>
 						</svg>
 					</div>
-					<h3 class="text-xl font-semibold mb-2">{t('home.accuracy')}</h3>
+					<h4 class="text-xl font-semibold mb-2">{t('home.accuracy')}</h4>
 					<p class="text-muted-foreground">
 						{t('home.accuracyDesc')}
 					</p>
@@ -144,7 +144,7 @@
 							/>
 						</svg>
 					</div>
-					<h3 class="text-xl font-semibold mb-2">{t('home.privacy')}</h3>
+					<h4 class="text-xl font-semibold mb-2">{t('home.privacy')}</h4>
 					<p class="text-muted-foreground">
 						{t('home.privacyDesc')}
 					</p>
@@ -156,25 +156,25 @@
 	<!-- Documentation Section -->
 	<div class="max-w-4xl mx-auto">
 		<div class="border-t pt-16 mt-16">
-			<h1 class="text-4xl font-bold mb-8">{t('docs.title')}</h1>
+			<h2 class="text-4xl font-bold mb-8">{t('docs.title')}</h2>
 
 			<div class="space-y-8">
 				<Card class="p-6">
-					<h2 class="text-2xl font-semibold mb-4">{t('docs.gettingStarted')}</h2>
+					<h3 class="text-2xl font-semibold mb-4">{t('docs.gettingStarted')}</h3>
 					<p class="text-muted-foreground mb-4">
 						{t('docs.gettingStartedDesc')}
 					</p>
 					{#if user?.plan_type === 'FREE'}
 						<div class="p-4 bg-muted rounded-md mb-4">
 							<p class="text-sm">
-								{t('docs.apiKeysAvailable')} <a href="/pricing" class="text-primary hover:underline">{t('docs.upgradePlan')}</a> {t('docs.toGetApiAccess')}
+								{t('docs.apiKeysAvailable')} <a href="/pricing" class="text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded px-1">{t('docs.upgradePlan')}</a> {t('docs.toGetApiAccess')}
 							</p>
 						</div>
 					{/if}
 				</Card>
 
 				<Card class="p-6">
-					<h2 class="text-2xl font-semibold mb-4">{t('docs.authentication')}</h2>
+					<h3 class="text-2xl font-semibold mb-4">{t('docs.authentication')}</h3>
 					<p class="text-muted-foreground mb-4">
 						{t('docs.authenticationDesc')}
 					</p>
@@ -182,7 +182,7 @@
 				</Card>
 
 				<Card class="p-6">
-					<h2 class="text-2xl font-semibold mb-4">{t('docs.ocrEndpoint')}</h2>
+					<h3 class="text-2xl font-semibold mb-4">{t('docs.ocrEndpoint')}</h3>
 					<p class="text-muted-foreground mb-4">
 						{t('docs.ocrEndpointDesc')}
 					</p>
@@ -206,7 +206,7 @@ file: [image file]</code></pre>
 				</Card>
 
 				<Card class="p-6">
-					<h2 class="text-2xl font-semibold mb-4">{t('docs.rateLimits')}</h2>
+					<h3 class="text-2xl font-semibold mb-4">{t('docs.rateLimits')}</h3>
 					<ul class="list-disc list-inside space-y-2 text-muted-foreground rtl:list-inside rtl:text-right">
 						<li>Free: 5 requests per month</li>
 						<li>Pro Monthly: 200 requests per month</li>
@@ -215,7 +215,7 @@ file: [image file]</code></pre>
 				</Card>
 
 				<Card class="p-6">
-					<h2 class="text-2xl font-semibold mb-4">{t('docs.supportedFormats')}</h2>
+					<h3 class="text-2xl font-semibold mb-4">{t('docs.supportedFormats')}</h3>
 					<ul class="list-disc list-inside space-y-2 text-muted-foreground rtl:list-inside rtl:text-right">
 						<li>PNG images</li>
 						<li>JPEG/JPG images</li>
@@ -225,7 +225,7 @@ file: [image file]</code></pre>
 				</Card>
 
 				<Card class="p-6">
-					<h2 class="text-2xl font-semibold mb-4">{t('docs.errorResponses')}</h2>
+					<h3 class="text-2xl font-semibold mb-4">{t('docs.errorResponses')}</h3>
 					<div class="space-y-4">
 						<div>
 							<p class="font-medium mb-2">403 - {t('docs.limitReached')}</p>

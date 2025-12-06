@@ -70,7 +70,7 @@
 		<div class="space-y-6">
 			<!-- Header -->
 			<div>
-				<h3 class="text-2xl font-bold mb-2 text-foreground">{plan.name}</h3>
+				<h2 class="text-2xl font-bold mb-2 text-foreground">{plan.name}</h2>
 				<p class="text-sm text-muted-foreground leading-relaxed">{plan.description}</p>
 			</div>
 
@@ -91,6 +91,7 @@
 							fill="none"
 							viewBox="0 0 24 24"
 							stroke="currentColor"
+							aria-hidden="true"
 						>
 							<path
 								stroke-linecap="round"

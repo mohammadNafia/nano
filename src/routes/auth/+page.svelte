@@ -17,15 +17,31 @@
 	let password = $state('');
 	let passwordConfirm = $state('');
 
-	onMount(() => {
-		// Redirect if already authenticated
-		const unsubscribe = authStore.subscribe((state) => {
-			if (state.isAuthenticated) {
-				unsubscribe();
-				goto('/upload');
-			}
+	onMount(async () => {
+		// Wait for auth initialization first
+		let unsubscribe: any;
+		
+		await new Promise<void>((resolve) => {
+			const timeout = setTimeout(() => {
+				if (unsubscribe) unsubscribe();
+				resolve();
+			}, 2000);
+			
+			unsubscribe = authStore.subscribe((state) => {
+				// Only redirect if both authenticated AND initialized
+				if (state.isInitialized && state.isAuthenticated) {
+					clearTimeout(timeout);
+					if (unsubscribe) unsubscribe();
+					goto('/upload', { replaceState: true });
+					resolve();
+				} else if (state.isInitialized && !state.isAuthenticated) {
+					// Initialized but not authenticated - stay on auth page
+					clearTimeout(timeout);
+					if (unsubscribe) unsubscribe();
+					resolve();
+				}
+			});
 		});
-		return unsubscribe;
 	});
 
 	async function handleSubmit() {
@@ -33,36 +49,32 @@
 		error = '';
 
 		try {
-			// Check for mock credentials (silent - no UI hints)
-			const MOCK_EMAIL = 'mohammadnafia1@gmail.com';
-			const MOCK_PASSWORD = '12345678';
-
-			if (!isSignUp && email === MOCK_EMAIL && password === MOCK_PASSWORD) {
-				// Mock login - authenticate directly without API call
-				const mockUser = {
-					id: 1,
-					name: 'Mohammad Nafia',
-					email: MOCK_EMAIL,
-					plan_type: 'FREE' as const
-				};
-				const mockToken = `mock_token_${Date.now()}`;
-				authStore.login(mockUser, mockToken, true);
+			if (!isSignUp && authStore.isMockAccount(email)) {
+				// Validate mock credentials
+				if (!authStore.validateMockLogin(email, password)) {
+					error = 'Invalid password for demo account.';
+					return;
+				}
+				// Use mock login
+				authStore.mockLogin();
 				goto('/upload');
 				return;
 			}
 
-			// Real API call for other credentials
+			// Real API calls
 			let response;
 			if (isSignUp) {
-				response = await apiClient.signup({ name, email, password, password_confirmation: passwordConfirm });
-				// Mark that user just signed up
-				if (typeof window !== 'undefined') {
-					sessionStorage.setItem('justSignedUp', 'true');
+				// Check if trying to register with mock email
+				if (authStore.isMockAccount(email)) {
+					error = 'This email is reserved for the demo account. Please use a different email.';
+					return;
 				}
-				authStore.login(response.user, response.token, false);
+				
+				response = await apiClient.signup({ name, email, password, password_confirmation: passwordConfirm });
+				authStore.login(response.user, response.token);
 			} else {
 				response = await apiClient.login({ email, password });
-				authStore.login(response.user, response.token, false);
+				authStore.login(response.user, response.token);
 			}
 
 			goto('/upload');
@@ -177,11 +189,13 @@
 					{isSignUp ? t('auth.alreadyHaveAccount') + ' ' : t('auth.dontHaveAccount') + ' '}
 				</span>
 				<button
+					type="button"
 					onclick={() => {
 						isSignUp = !isSignUp;
 						error = '';
 					}}
-					class="text-cyan-600 dark:text-cyan-400 hover:underline font-medium transition-colors"
+					class="text-cyan-600 dark:text-cyan-500 hover:underline font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 rounded px-1"
+					aria-label={isSignUp ? 'Switch to sign in' : 'Switch to sign up'}
 				>
 					{isSignUp ? t('auth.switchToSignIn') : t('auth.switchToSignUp')}
 				</button>

@@ -83,7 +83,7 @@
 <Card class={className}>
 	<div class="p-6">
 		<div class="flex items-center justify-between mb-4">
-			<h3 class="text-lg font-semibold">{t('ocrResult.title')}</h3>
+			<h2 class="text-lg font-semibold">{t('ocrResult.title')}</h2>
 			<div class="flex items-center gap-2">
 				{#if confidence !== undefined}
 					<span class="text-sm text-muted-foreground">
@@ -91,26 +91,28 @@
 					</span>
 				{/if}
 				{#if isTyping}
-					<Button variant="ghost" size="sm" onclick={handleSkip}>{t('ocrResult.skip')}</Button>
+					<Button variant="ghost" size="sm" onclick={handleSkip} aria-label="Skip typing animation">{t('ocrResult.skip')}</Button>
 				{/if}
-				<Button variant="ghost" size="sm" onclick={copyToClipboard}>
+				<Button variant="ghost" size="sm" onclick={copyToClipboard} aria-label="Copy text to clipboard">
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
 						class="h-4 w-4"
 						viewBox="0 0 20 20"
 						fill="currentColor"
+						aria-hidden="true"
 					>
 						<path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
 						<path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
 					</svg>
 				</Button>
 				{#if onClose}
-					<Button variant="ghost" size="sm" onclick={onClose}>
+					<Button variant="ghost" size="sm" onclick={onClose} aria-label="Close">
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
 							class="h-4 w-4"
 							viewBox="0 0 20 20"
 							fill="currentColor"
+							aria-hidden="true"
 						>
 							<path
 								fill-rule="evenodd"
@@ -126,8 +128,9 @@
 			{#if isEditing}
 				<textarea
 					bind:value={editedText}
-					class="w-full bg-transparent text-sm font-mono resize-none focus:outline-none focus:ring-2 focus:ring-primary rounded"
+					class="w-full bg-transparent text-sm font-mono resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
 					rows="10"
+					aria-label="Edit extracted text"
 				></textarea>
 			{:else}
 				<p class="whitespace-pre-wrap text-sm font-mono">{displayedText || initialText}</p>

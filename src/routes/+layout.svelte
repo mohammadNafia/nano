@@ -7,7 +7,6 @@
 	import Navbar from '$lib/components/layout/Navbar.svelte';
 	import Footer from '$lib/components/layout/Footer.svelte';
 	import ScrollProgress from '$lib/components/ScrollProgress.svelte';
-	import { fade } from 'svelte/transition';
 
 	interface Props {
 		children?: Snippet;
@@ -20,12 +19,17 @@
 		themeStore.init();
 	}
 
-	onMount(() => {
-		authStore.init();
-		if (!browser) {
-			themeStore.init();
+	let initialized = $state(false);
+
+	onMount(async () => {
+		// Only initialize once - prevent multiple re-initializations
+		if (!initialized && browser) {
+			// Initialize authStore and wait for it to complete
+			// This ensures all pages can rely on authStore being initialized
+			await authStore.init();
+			langStore.init();
+			initialized = true;
 		}
-		langStore.init();
 	});
 </script>
 
@@ -34,7 +38,7 @@
 	<ScrollProgress />
 	<main class="flex-1 global-main">
 		{#if children}
-			<div class="global-wrapper" in:fade={{ duration: 300 }} out:fade={{ duration: 200 }}>
+			<div class="global-wrapper">
 				<div class="global-container">
 					{@render children()}
 				</div>
@@ -63,7 +67,9 @@
 		width: 100%;
 		min-height: calc(100vh - 8rem);
 		position: relative;
-		animation: pageFadeIn 0.4s ease-out, pageScaleIn 0.4s ease-out;
+		/* Remove expensive animations - use CSS transitions instead */
+		opacity: 1;
+		transform: scale(1);
 	}
 
 	/* Ensure all direct children of global-wrapper get proper spacing */

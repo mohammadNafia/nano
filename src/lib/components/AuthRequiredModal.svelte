@@ -2,7 +2,7 @@
 	import { fade, scale } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
 	import Button from './ui/Button.svelte';
-	import { Lock } from 'lucide-svelte';
+	import Lock from 'lucide-svelte/icons/lock';
 
 	interface Props {
 		show?: boolean;
@@ -44,6 +44,7 @@
 		role="dialog"
 		aria-modal="true"
 		aria-labelledby="auth-modal-title"
+		aria-describedby="auth-modal-description"
 		tabindex="-1"
 		transition:fade={{ duration: 200, easing: cubicOut }}
 	>
@@ -65,7 +66,7 @@
 			</h2>
 
 			<!-- Description -->
-			<p class="text-muted-foreground text-center mb-8 leading-relaxed">
+			<p id="auth-modal-description" class="text-muted-foreground text-center mb-8 leading-relaxed">
 				Please sign in first to use OCR uploads. Create an account or sign in to start extracting text from your documents.
 			</p>
 

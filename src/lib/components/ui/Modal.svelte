@@ -42,18 +42,20 @@
 		onkeydown={handleKeydown}
 		role="dialog"
 		aria-modal="true"
+		aria-labelledby={title ? 'modal-title' : undefined}
 		tabindex="-1"
 	>
 		<div class={cn('bg-background rounded-lg shadow-lg max-w-md w-full mx-4', className)} {...restProps}>
 			{#if title}
 				<div class="flex items-center justify-between p-6 border-b">
-					<h2 class="text-lg font-semibold">{title}</h2>
+					<h2 id="modal-title" class="text-lg font-semibold">{title}</h2>
 					<button
+						type="button"
 						onclick={() => {
 							open = false;
 							dispatch('close');
 						}}
-						class="text-muted-foreground hover:text-foreground"
+						class="text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded p-1"
 						aria-label="Close dialog"
 					>
 						<svg

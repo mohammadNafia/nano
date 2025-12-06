@@ -80,7 +80,7 @@
 <Card class="p-6">
 	<div class="flex items-center justify-between mb-6">
 		<div>
-			<h3 class="text-lg font-semibold mb-1">{t('apiKeys.title')}</h3>
+			<h2 class="text-lg font-semibold mb-1">{t('apiKeys.title')}</h2>
 			<p class="text-sm text-muted-foreground">
 				{t('apiKeys.description')}
 			</p>
@@ -137,8 +137,12 @@
 					type="text"
 					bind:value={newKeyLabel}
 					placeholder={t('apiKeys.labelPlaceholder')}
-					class="w-full px-3 py-2 border rounded-md"
+					class="w-full px-3 py-2 border rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+					aria-describedby="key-label-description"
 				/>
+				<p id="key-label-description" class="text-xs text-muted-foreground mt-1">
+					{t('apiKeys.labelDescription') || 'Optional label to identify this API key'}
+				</p>
 			</div>
 			<div class="flex justify-end gap-2">
 				<Button variant="outline" onclick={() => {

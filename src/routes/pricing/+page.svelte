@@ -114,18 +114,14 @@
 	}
 
 	async function handleCheckout(plan: PricingPlan) {
-		if (!plan.planType) {
-			if (plan.planType === 'FREE') {
-				goto('/auth');
-			} else if (plan.planType === 'PREMIUM') {
-				// Contact sales - you can implement this
-				alert('Please contact sales for Premium plan');
-			}
+		if (!plan.planType || plan.planType === 'FREE') {
+			goto('/auth');
 			return;
 		}
 
-		if (!authStore) {
-			goto('/auth');
+		if (plan.planType === 'PREMIUM') {
+			// Contact sales - you can implement this
+			alert('Please contact sales for Premium plan');
 			return;
 		}
 
@@ -133,12 +129,15 @@
 		try {
 			const planType = isAnnual ? 'PRO_YEARLY' : (plan.planType as 'PRO_MONTHLY');
 			const response = await apiClient.createCheckout(planType);
-			if (response.checkout_url) {
+			if (response?.checkout_url) {
 				window.location.href = response.checkout_url;
+			} else {
+				throw new Error('No checkout URL received');
 			}
-		} catch (err) {
+		} catch (err: any) {
 			console.error('Checkout error:', err);
-			alert('Failed to create checkout session. Please try again.');
+			const errorMessage = err?.message || 'Failed to create checkout session. Please try again.';
+			alert(errorMessage);
 		} finally {
 			loading = false;
 		}

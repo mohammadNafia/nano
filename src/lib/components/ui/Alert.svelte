@@ -1,7 +1,11 @@
 <script lang="ts">
 	import { fade } from 'svelte/transition';
 	import { cn } from '$lib/utils';
-	import { X, AlertCircle, CheckCircle, Info, AlertTriangle } from 'lucide-svelte';
+	import X from 'lucide-svelte/icons/x';
+	import AlertCircle from 'lucide-svelte/icons/alert-circle';
+	import CheckCircle from 'lucide-svelte/icons/check-circle';
+	import Info from 'lucide-svelte/icons/info';
+	import AlertTriangle from 'lucide-svelte/icons/alert-triangle';
 
 	type Variant = 'default' | 'success' | 'error' | 'warning' | 'info';
 
@@ -72,8 +76,10 @@
 		onkeydown={(e) => {
 			if (e.key === 'Escape') handleClose();
 		}}
-		role="dialog"
+		role="alertdialog"
 		aria-modal="true"
+		aria-labelledby={title ? 'alert-title' : undefined}
+		aria-describedby="alert-message"
 		tabindex="-1"
 		transition:fade
 	>
@@ -92,17 +98,18 @@
 					</div>
 					<div class="flex-1">
 						{#if title}
-							<h3 class={cn('text-lg font-semibold mb-2', textStyles[variant])}>{title}</h3>
+							<h3 id="alert-title" class={cn('text-lg font-semibold mb-2', textStyles[variant])}>{title}</h3>
 						{/if}
-						<p class={cn('text-sm', textStyles[variant])}>{message}</p>
+						<p id="alert-message" class={cn('text-sm', textStyles[variant])}>{message}</p>
 					</div>
 					<button
+						type="button"
 						onclick={handleClose}
 						class={cn(
-							'flex-shrink-0 p-1 rounded-md hover:bg-black/5 dark:hover:bg-white/5 transition-colors',
+							'flex-shrink-0 p-1 rounded-md hover:bg-black/5 dark:hover:bg-white/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
 							textStyles[variant]
 						)}
-						aria-label="Close"
+						aria-label="Close alert"
 					>
 						<X class="h-5 w-5" />
 					</button>
@@ -110,13 +117,15 @@
 				<div class="mt-4 flex justify-end gap-2">
 					{#if showCancel}
 						<button
+							type="button"
 							onclick={handleClose}
-							class="px-4 py-2 rounded-md text-sm font-medium transition-colors bg-muted hover:bg-muted/80 text-foreground"
+							class="px-4 py-2 rounded-md text-sm font-medium transition-colors bg-muted hover:bg-muted/80 text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
 						>
 							{cancelText}
 						</button>
 					{/if}
 					<button
+						type="button"
 						onclick={() => {
 							if (onConfirm) {
 								onConfirm();
@@ -124,14 +133,14 @@
 							handleClose();
 						}}
 						class={cn(
-							'px-4 py-2 rounded-md text-sm font-medium transition-colors',
+							'px-4 py-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
 							variant === 'error'
-								? 'bg-red-600 hover:bg-red-700 text-white'
+								? 'bg-red-600 hover:bg-red-700 text-white focus-visible:ring-red-600'
 								: variant === 'success'
-									? 'bg-green-600 hover:bg-green-700 text-white'
+									? 'bg-green-600 hover:bg-green-700 text-white focus-visible:ring-green-600'
 									: variant === 'warning'
-										? 'bg-yellow-600 hover:bg-yellow-700 text-white'
-										: 'bg-primary hover:bg-primary/90 text-primary-foreground'
+										? 'bg-yellow-600 hover:bg-yellow-700 text-white focus-visible:ring-yellow-600'
+										: 'bg-primary hover:bg-primary/90 text-primary-foreground focus-visible:ring-primary'
 						)}
 					>
 						{confirmText}

@@ -7,16 +7,33 @@
 	import Button from '../ui/Button.svelte';
 	import LanguageToggle from '../LanguageToggle.svelte';
 	import ThemeToggler from '../ThemeToggler.svelte';
-	import { Menu, X } from 'lucide-svelte';
+	import Menu from 'lucide-svelte/icons/menu';
+	import X from 'lucide-svelte/icons/x';
 
-	let authState = $state<{ isAuthenticated: boolean; user: any }>({ isAuthenticated: false, user: null });
+	let authState = $state<{ isAuthenticated: boolean; user: any; isInitialized: boolean }>({ 
+		isAuthenticated: false, 
+		user: null,
+		isInitialized: false
+	});
 	let mobileMenuOpen = $state(false);
 
+	// Optimize subscription - only update when values change
 	authStore.subscribe((state) => {
-		authState = state;
+		if (
+			authState.isAuthenticated !== state.isAuthenticated ||
+			authState.user !== state.user ||
+			authState.isInitialized !== (state.isInitialized || false)
+		) {
+			authState = {
+				isAuthenticated: state.isAuthenticated && state.isInitialized,
+				user: state.user,
+				isInitialized: state.isInitialized || false
+			};
+		}
 	});
 
-	let isAuthenticated = $derived(authState.isAuthenticated);
+	// Only show authenticated UI if both authenticated AND initialized
+	let isAuthenticated = $derived(authState.isAuthenticated && authState.isInitialized);
 	let user = $derived(authState.user);
 
 	function handleLogout() {
@@ -72,21 +89,24 @@
 	<div class="container mx-auto px-4 sm:px-6 lg:px-8">
 		<div class="flex h-16 items-center justify-between">
 			<div class="flex items-center gap-8">
-				<a href="/" class="flex items-center gap-2 font-bold text-xl">
-					<span class="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+				<a href="/" class="flex items-center gap-2 font-bold text-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded" aria-label="Home">
+					<span class="text-[#0084FF] dark:text-[#40A5FF]">
 						{t('navbar.brand')}
 					</span>
 				</a>
 				{#if isAuthenticated}
 					<div class="hidden md:flex items-center gap-6">
-						<a href="/upload" class="text-sm font-medium hover:text-primary transition-colors">
+						<a href="/upload" class="text-sm font-medium hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded px-2 py-1">
 							{t('navbar.upload')}
 						</a>
-						<a href="/dashboard" class="text-sm font-medium hover:text-primary transition-colors">
+						<a href="/dashboard" class="text-sm font-medium hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded px-2 py-1">
 							{t('navbar.dashboard')}
 						</a>
-						<a href="/docs" class="text-sm font-medium hover:text-primary transition-colors">
+						<a href="/docs" class="text-sm font-medium hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded px-2 py-1">
 							{t('navbar.docs')}
+						</a>
+						<a href="/pricing" class="text-sm font-medium hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded px-2 py-1">
+							Subscribe
 						</a>
 					</div>
 				{/if}
@@ -128,14 +148,13 @@
 
 <!-- Mobile menu overlay -->
 {#if mobileMenuOpen}
-	<div
+	<button
 		class="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden"
 		onclick={closeMobileMenu}
 		transition:fade={{ duration: 200 }}
-		role="button"
-		tabindex="-1"
 		aria-label="Close menu"
-	></div>
+		type="button"
+	></button>
 {/if}
 
 <!-- Mobile slide menu -->
@@ -150,7 +169,7 @@
 	<div class="flex flex-col h-full">
 		<!-- Mobile menu header -->
 		<div class="flex items-center justify-between p-4 border-b">
-			<span class="font-bold text-lg bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+			<span class="font-bold text-lg text-[#0084FF] dark:text-[#40A5FF]">
 				{t('navbar.brand')}
 			</span>
 			<button
@@ -177,23 +196,30 @@
 						<a
 							href="/upload"
 							onclick={handleLinkClick}
-							class="block px-4 py-3 rounded-lg text-sm font-medium hover:bg-muted transition-colors"
+							class="block px-4 py-3 rounded-lg text-sm font-medium hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
 						>
 							{t('navbar.upload')}
 						</a>
 						<a
 							href="/dashboard"
 							onclick={handleLinkClick}
-							class="block px-4 py-3 rounded-lg text-sm font-medium hover:bg-muted transition-colors"
+							class="block px-4 py-3 rounded-lg text-sm font-medium hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
 						>
 							{t('navbar.dashboard')}
 						</a>
 						<a
 							href="/docs"
 							onclick={handleLinkClick}
-							class="block px-4 py-3 rounded-lg text-sm font-medium hover:bg-muted transition-colors"
+							class="block px-4 py-3 rounded-lg text-sm font-medium hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
 						>
 							{t('navbar.docs')}
+						</a>
+						<a
+							href="/pricing"
+							onclick={handleLinkClick}
+							class="block px-4 py-3 rounded-lg text-sm font-medium hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+						>
+							Subscribe
 						</a>
 					</nav>
 				</div>

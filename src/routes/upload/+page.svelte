@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { browser } from '$app/environment';
 	import { fade } from 'svelte/transition';
 	import { authStore, usageStore, historyStore } from '$lib/stores';
 	import Card from '$lib/components/ui/Card.svelte';
@@ -8,24 +9,27 @@
 	import Modal from '$lib/components/ui/Modal.svelte';
 	import Alert from '$lib/components/ui/Alert.svelte';
 	import AuthRequiredModal from '$lib/components/AuthRequiredModal.svelte';
-	import {
-		Upload,
-		Trash2,
-		Edit,
-		Save,
-		ThumbsUp,
-		ThumbsDown,
-		Copy,
-		FileText,
-		X,
-		Download,
-		FileDown
-	} from 'lucide-svelte';
+	// Optimize icon imports - tree-shakeable per-icon imports
+	import Upload from 'lucide-svelte/icons/upload';
+	import Trash2 from 'lucide-svelte/icons/trash-2';
+	import Edit from 'lucide-svelte/icons/edit';
+	import Save from 'lucide-svelte/icons/save';
+	import ThumbsUp from 'lucide-svelte/icons/thumbs-up';
+	import ThumbsDown from 'lucide-svelte/icons/thumbs-down';
+	import Copy from 'lucide-svelte/icons/copy';
+	import FileText from 'lucide-svelte/icons/file-text';
+	import X from 'lucide-svelte/icons/x';
+	import Download from 'lucide-svelte/icons/download';
+	import FileDown from 'lucide-svelte/icons/file-down';
 	import { cn } from '$lib/utils';
-	import jsPDF from 'jspdf';
-	import { Document, Packer, Paragraph, TextRun } from 'docx';
-	// @ts-ignore - file-saver types
-	import { saveAs } from 'file-saver';
+	
+	// Lazy load heavy libraries - only load when needed
+	let jsPDF: any = null;
+	let Document: any = null;
+	let Packer: any = null;
+	let Paragraph: any = null;
+	let TextRun: any = null;
+	let fileSaver: any = null;
 
 	// State variables
 	let dragOver = $state(false);
@@ -50,10 +54,29 @@
 	// Auth required modal state
 	let showAuthModal = $state(false);
 
-	// Auth state
-	let authState = $state<{ isAuthenticated: boolean; user: any }>({ isAuthenticated: false, user: null });
+	// Auth state - optimized to prevent unnecessary re-renders
+	let authState = $state<{ isAuthenticated: boolean; user: any; isInitialized: boolean }>({ 
+		isAuthenticated: false, 
+		user: null,
+		isInitialized: false
+	});
+	
 	authStore.subscribe((state) => {
-		authState = state;
+		// Only update if values actually changed
+		// Only consider authenticated if both authenticated AND initialized
+		const effectiveAuthenticated = state.isAuthenticated && state.isInitialized;
+		
+		if (
+			authState.isAuthenticated !== effectiveAuthenticated ||
+			authState.user !== state.user ||
+			authState.isInitialized !== (state.isInitialized || false)
+		) {
+			authState = {
+				isAuthenticated: effectiveAuthenticated,
+				user: state.user,
+				isInitialized: state.isInitialized || false
+			};
+		}
 	});
 
 	// Usage state
@@ -72,7 +95,8 @@
 	});
 
 	onMount(() => {
-		authStore.init();
+		// Don't re-initialize authStore - it's already initialized in layout
+		// Only initialize historyStore if needed
 		historyStore.init();
 	});
 
@@ -229,6 +253,12 @@ Total Due: $1,440.00`;
 
 		// Increment usage
 		usageStore.incrementUsage();
+		
+		// Invalidate dashboard cache since we added a new upload
+		if (browser) {
+			const { apiClient } = await import('$lib/api');
+			apiClient.invalidateDashboardCache();
+		}
 
 		// Start typing animation
 		startTypingAnimation(mockText);
@@ -304,6 +334,12 @@ Total Due: $1,440.00`;
 		if (!textToExport) return;
 
 		try {
+			// Lazy load jsPDF only when needed
+			if (!jsPDF) {
+				const jsPDFModule = await import('jspdf');
+				jsPDF = jsPDFModule.default;
+			}
+			
 			const doc = new jsPDF();
 			const lines = doc.splitTextToSize(textToExport, 180);
 			doc.text(lines, 10, 10);
@@ -320,6 +356,18 @@ Total Due: $1,440.00`;
 		if (!textToExport) return;
 
 		try {
+			// Lazy load docx and file-saver only when needed
+			if (!Document || !Packer || !Paragraph || !TextRun || !fileSaver) {
+				const docxModule = await import('docx');
+				Document = docxModule.Document;
+				Packer = docxModule.Packer;
+				Paragraph = docxModule.Paragraph;
+				TextRun = docxModule.TextRun;
+				
+				const fileSaverModule = await import('file-saver');
+				fileSaver = fileSaverModule.default;
+			}
+
 			// Split text into paragraphs
 			const paragraphs = textToExport.split('\n\n').map(
 				(para) =>
@@ -344,7 +392,7 @@ Total Due: $1,440.00`;
 			});
 
 			const blob = await Packer.toBlob(doc);
-			saveAs(blob, `extracted-text-${Date.now()}.docx`);
+			fileSaver.saveAs(blob, `extracted-text-${Date.now()}.docx`);
 			showExportModal = false;
 			showAlert('Exported!', 'Text has been exported as Word document.', 'success');
 		} catch (error) {
@@ -403,14 +451,15 @@ Total Due: $1,440.00`;
 		<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 			<!-- Left Column: Upload Area -->
 			<Card class="p-6">
-				<h2 class="text-xl font-semibold mb-4">Upload File</h2>
+				<h2 class="text-xl font-semibold mb-4" id="upload-section-title">Upload File</h2>
 
 				<!-- Upload Area -->
 				<div
 					role="button"
 					tabindex="0"
+					aria-label="Upload area: Drag and drop files here or click to browse"
 					class={cn(
-						'relative border-2 border-dashed rounded-lg p-8 text-center transition-all cursor-pointer',
+						'relative border-2 border-dashed rounded-lg p-8 text-center transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
 						dragOver
 							? 'border-primary bg-primary/5'
 							: 'border-muted-foreground/25 hover:border-primary/50',
@@ -471,7 +520,7 @@ Total Due: $1,440.00`;
 							{#if isImageFile(file)}
 								<img
 									src={filePreviewUrl || ''}
-									alt={file.name}
+									alt={`Preview of uploaded file: ${file.name}`}
 									class="max-h-64 mx-auto rounded-lg object-contain"
 								/>
 							{:else if isPDFFile(file)}
@@ -483,12 +532,14 @@ Total Due: $1,440.00`;
 
 							<!-- Clear Button -->
 							<button
-								class="absolute top-2 right-2 p-2 rounded-full bg-background/80 hover:bg-background border shadow-sm transition-colors z-10"
+								type="button"
+								class="absolute top-2 right-2 p-2 rounded-full bg-background/80 hover:bg-background border shadow-sm transition-colors z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
 								onclick={(e) => {
 									e.stopPropagation();
 									clearFile();
 								}}
 								disabled={isProcessing}
+								aria-label="Clear file"
 							>
 								<Trash2 class="h-4 w-4 text-destructive" />
 							</button>
@@ -536,14 +587,16 @@ Total Due: $1,440.00`;
 			<!-- Right Column: Result Area -->
 			<Card class="p-6">
 				<div class="flex items-center justify-between mb-4">
-					<h2 class="text-xl font-semibold">Extracted Text</h2>
+					<h2 class="text-xl font-semibold" id="extracted-text-title">Extracted Text</h2>
 					{#if result}
 						<div class="flex gap-2">
 							<!-- Action Buttons -->
 							<button
-								class="p-2 rounded-md hover:bg-muted transition-colors"
+								type="button"
+								class="p-2 rounded-md hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
 								onclick={toggleEdit}
 								title={isEditing ? 'Save' : 'Edit'}
+								aria-label={isEditing ? 'Save changes' : 'Edit text'}
 							>
 								{#if isEditing}
 									<Save class="h-4 w-4" />
@@ -552,37 +605,47 @@ Total Due: $1,440.00`;
 								{/if}
 							</button>
 							<button
-								class="p-2 rounded-md hover:bg-muted transition-colors"
+								type="button"
+								class="p-2 rounded-md hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
 								onclick={() => {}}
 								title="Thumbs Up"
+								aria-label="Thumbs up"
 							>
 								<ThumbsUp class="h-4 w-4" />
 							</button>
 							<button
-								class="p-2 rounded-md hover:bg-muted transition-colors"
+								type="button"
+								class="p-2 rounded-md hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
 								onclick={() => {}}
 								title="Thumbs Down"
+								aria-label="Thumbs down"
 							>
 								<ThumbsDown class="h-4 w-4" />
 							</button>
 							<button
-								class="p-2 rounded-md hover:bg-muted transition-colors"
+								type="button"
+								class="p-2 rounded-md hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
 								onclick={copyText}
 								title="Copy"
+								aria-label="Copy text to clipboard"
 							>
 								<Copy class="h-4 w-4" />
 							</button>
 							<button
-								class="p-2 rounded-md hover:bg-muted transition-colors"
+								type="button"
+								class="p-2 rounded-md hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
 								onclick={showExportOptions}
 								title="Export"
+								aria-label="Export text"
 							>
 								<FileDown class="h-4 w-4" />
 							</button>
 							<button
-								class="p-2 rounded-md hover:bg-destructive/10 hover:text-destructive transition-colors"
+								type="button"
+								class="p-2 rounded-md hover:bg-destructive/10 hover:text-destructive transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
 								onclick={deleteResult}
 								title="Delete"
+								aria-label="Delete result"
 							>
 								<X class="h-4 w-4" />
 							</button>
@@ -650,8 +713,10 @@ Total Due: $1,440.00`;
 			</p>
 			<div class="grid grid-cols-2 gap-4">
 				<button
+					type="button"
 					onclick={exportToPDF}
-					class="flex flex-col items-center gap-3 p-6 border-2 border-dashed rounded-lg hover:border-primary hover:bg-primary/5 transition-colors group"
+					class="flex flex-col items-center gap-3 p-6 border-2 border-dashed rounded-lg hover:border-primary hover:bg-primary/5 transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+					aria-label="Export as PDF"
 				>
 					<FileText class="h-12 w-12 text-primary group-hover:scale-110 transition-transform" />
 					<div class="text-center">
@@ -660,8 +725,10 @@ Total Due: $1,440.00`;
 					</div>
 				</button>
 				<button
+					type="button"
 					onclick={exportToWord}
-					class="flex flex-col items-center gap-3 p-6 border-2 border-dashed rounded-lg hover:border-primary hover:bg-primary/5 transition-colors group"
+					class="flex flex-col items-center gap-3 p-6 border-2 border-dashed rounded-lg hover:border-primary hover:bg-primary/5 transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+					aria-label="Export as Word document"
 				>
 					<FileDown class="h-12 w-12 text-primary group-hover:scale-110 transition-transform" />
 					<div class="text-center">

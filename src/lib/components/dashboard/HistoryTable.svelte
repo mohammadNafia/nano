@@ -35,7 +35,7 @@
 
 <Card class={className}>
 	<div class="p-6">
-		<h3 class="text-lg font-semibold mb-4">{t('history.title')}</h3>
+		<h2 class="text-lg font-semibold mb-4">{t('history.title')}</h2>
 		<div class="overflow-x-auto">
 			<table class="w-full">
 				<thead>
