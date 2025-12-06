@@ -3,7 +3,7 @@ import { browser } from '$app/environment';
 import { authStore } from '../stores/authStore';
 
 // Use Laravel backend API
-const API_BASE_URL = 'https://ocr-main-ddl4dg.laravel.cloud/api';
+const API_BASE_URL = 'http://127.0.0.1:8000/api';
 
 // Cache interface for API responses
 interface CacheEntry<T> {
@@ -29,14 +29,14 @@ class ApiClient {
 		HISTORY: 1 * 60 * 1000
 	};
 
-	constructor() {
+		constructor() {
 		this.client = axios.create({
 			baseURL: API_BASE_URL,
 			headers: {
 				'Content-Type': 'application/json',
 				Accept: 'application/json'
 			},
-			timeout: 30000 // 30 seconds for OCR processing
+			timeout: 10000 // 10 seconds default timeout (OCR uploads can override)
 		});
 
 		// Request interceptor to add auth token from authStore
@@ -308,7 +308,7 @@ class ApiClient {
 
 	async getOCRResult(id: number) {
 		try {
-			const response = await this.client.get(`/ocr/result/${id}`);
+			const response: any = await this.client.get(`/ocr/files/${id}`);
 			// Response interceptor already extracts response.data
 			return response?.data || response;
 		} catch (error: any) {
@@ -319,16 +319,36 @@ class ApiClient {
 
 	async getOCRHistory(page: number = 1, limit: number = 10) {
 		try {
-			const response = await this.client.get('/ocr/history', {
-				params: { page, per_page: limit }
+			const response: any = await this.client.get('/ocr/history', {
+				params: { limit: limit || 10 },
+				timeout: 8000 // 8 second timeout for history requests
 			});
-			// Response interceptor already extracts response.data, so response here IS the data
-			// Handle both array and object with data property
-			const history = Array.isArray(response) 
-				? response 
-				: (response?.data || response || []);
 			
-			return Array.isArray(history) ? history : [];
+			// Response interceptor already extracts response.data, so response here IS the data
+			// Handle Laravel response format: {success: true, data: [...]}
+			let history = response;
+			
+			// If response has a data property and it's an array, use it
+			if (response && typeof response === 'object' && Array.isArray(response.data)) {
+				history = response.data;
+			} else if (Array.isArray(response)) {
+				history = response;
+			} else {
+				history = [];
+			}
+			
+			// Transform backend format to frontend format
+			return history.map((item: any) => ({
+				id: item.id,
+				created_at: item.created_at || item.processed_at || new Date().toISOString(),
+				text_preview: item.extracted_text || item.text_preview || item.text || '',
+				confidence_score: item.confidence_score || item.confidence || null,
+				original_filename: item.original_filename || item.filename || '',
+				extracted_text: item.extracted_text || item.text || '',
+				status: item.status || 'completed',
+				from_cache: item.from_cache || false,
+				processing_time_ms: item.processing_time_ms || 0
+			}));
 		} catch (error: any) {
 			console.error('getOCRHistory error:', error);
 			// Return empty array instead of throwing to prevent UI crashes
@@ -349,17 +369,34 @@ class ApiClient {
 		// Use deduplication
 		return this.dedupeRequest(cacheKey, async () => {
 			// Since backend doesn't have a dedicated overview endpoint,
-			// we'll calculate stats from history
+			// we'll calculate stats from history with timeout protection
 			try {
-				const historyResponse: any = await this.client.get('/ocr/history', {
-					params: { page: 1, per_page: 100 }
+				// Create a timeout promise
+				const timeoutPromise = new Promise<any>((_, reject) => {
+					setTimeout(() => reject(new Error('Request timeout')), 5000); // 5 second timeout
 				});
+
+				// Race between API call and timeout
+				const historyResponse: any = await Promise.race([
+					this.client.get('/ocr/history', {
+						params: { limit: 50 }, // Reduced limit for faster response
+						timeout: 5000 // 5 second timeout
+					}),
+					timeoutPromise
+				]);
 				
 				// Response interceptor already extracts response.data, so historyResponse IS the data
-				// Handle both array and object with data property
-				const history = Array.isArray(historyResponse) 
-					? historyResponse 
-					: (historyResponse?.data || historyResponse || []);
+				// Handle Laravel response format: {success: true, data: [...]}
+				let history = historyResponse;
+				
+				// If response has a data property and it's an array, use it
+				if (historyResponse && typeof historyResponse === 'object' && Array.isArray(historyResponse.data)) {
+					history = historyResponse.data;
+				} else if (Array.isArray(historyResponse)) {
+					history = historyResponse;
+				} else {
+					history = [];
+				}
 				
 				const historyArray = Array.isArray(history) ? history : [];
 				const uploads_this_month = historyArray.length;
@@ -367,9 +404,13 @@ class ApiClient {
 				// Calculate average confidence if available
 				let average_confidence: number | null = null;
 				if (historyArray.length > 0) {
-					const confidences = historyArray
-						.map((item: any) => item.confidence_score || item.confidence)
-						.filter((score: any) => typeof score === 'number' && !isNaN(score));
+					const confidences: number[] = historyArray
+						.map((item: any) => {
+							// Handle both transformed and raw backend formats
+							const score = item.confidence_score || item.confidence;
+							return typeof score === 'number' && !isNaN(score) ? score : null;
+						})
+						.filter((score): score is number => score !== null && typeof score === 'number');
 					
 					if (confidences.length > 0) {
 						const total = confidences.reduce((sum: number, score: number) => sum + score, 0);
@@ -444,9 +485,19 @@ class ApiClient {
 
 		return this.dedupeRequest(cacheKey, async () => {
 			try {
-				const result = await this.getOCRHistory(page, perPage);
-				// Ensure result is an array - handle both direct array and wrapped responses
-				const historyArray = Array.isArray(result) ? result : (result?.data || []);
+				// Create a timeout promise
+				const timeoutPromise = new Promise<any>((_, reject) => {
+					setTimeout(() => reject(new Error('Request timeout')), 5000); // 5 second timeout
+				});
+
+				// Race between API call and timeout
+				const result: any = await Promise.race([
+					this.getOCRHistory(page, perPage),
+					timeoutPromise
+				]);
+				
+				// getOCRHistory already returns a transformed array
+				const historyArray = Array.isArray(result) ? result : [];
 				
 				if (page === 1) {
 					this.setCache(cacheKey, historyArray);
@@ -505,6 +556,86 @@ class ApiClient {
 			return response;
 		} catch (error: any) {
 			console.error('deleteApiKey error:', error);
+			throw error;
+		}
+	}
+
+	// Documentation/testing endpoints - for interactive API testing
+	async getOCRStatus() {
+		try {
+			const response = await this.client.get('/ocr/status');
+			return response?.data || response;
+		} catch (error: any) {
+			console.error('getOCRStatus error:', error);
+			throw error;
+		}
+	}
+
+	async getRateLimitStatus() {
+		try {
+			const response = await this.client.get('/ocr/rate-limit');
+			return response?.data || response;
+		} catch (error: any) {
+			console.error('getRateLimitStatus error:', error);
+			throw error;
+		}
+	}
+
+	async testOCRUpload(file: File) {
+		try {
+			const formData = new FormData();
+			formData.append('image', file);
+			
+			const response = await this.client.post('/ocr/demo/upload', formData, {
+				headers: {
+					'Content-Type': 'multipart/form-data'
+				}
+			});
+			
+			return response?.data || response;
+		} catch (error: any) {
+			console.error('testOCRUpload error:', error);
+			throw error;
+		}
+	}
+
+	async testAuthRegister(data: { name: string; email: string; password: string; password_confirmation: string }) {
+		try {
+			const response = await this.client.post('/auth/register', data);
+			return response;
+		} catch (error: any) {
+			console.error('testAuthRegister error:', error);
+			throw error;
+		}
+	}
+
+	async testAuthLogin(data: { email: string; password: string }) {
+		try {
+			const response = await this.client.post('/auth/login', data);
+			return response;
+		} catch (error: any) {
+			console.error('testAuthLogin error:', error);
+			throw error;
+		}
+	}
+
+	async testGetOCRFile(id: number) {
+		try {
+			const response: any = await this.client.get(`/ocr/files/${id}`);
+			return response?.data || response;
+		} catch (error: any) {
+			console.error('testGetOCRFile error:', error);
+			throw error;
+		}
+	}
+
+	async testGetOCRHistory(limit?: number) {
+		try {
+			const params = limit ? { limit } : {};
+			const response: any = await this.client.get('/ocr/history', { params });
+			return response?.data || response;
+		} catch (error: any) {
+			console.error('testGetOCRHistory error:', error);
 			throw error;
 		}
 	}

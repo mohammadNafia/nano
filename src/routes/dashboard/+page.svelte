@@ -196,37 +196,35 @@
 			}
 			
 			// Real API calls for backend users
-			// Add timeout to prevent hanging forever
-			const API_TIMEOUT = 10000; // 10 seconds
-			
-			const apiPromise = Promise.all([
-				apiClient.getDashboardOverview(true).catch((err) => {
-					console.error('getDashboardOverview error:', err);
-					return defaultOverview;
-				}),
-				apiClient.getDashboardHistory(1, 10, true).catch((err) => {
-					console.error('getDashboardHistory error:', err);
-					return [];
-				})
-			]);
-			
-			// Create timeout promise that resolves with fallback data instead of rejecting
-			const timeoutPromise = new Promise<[any, any]>((resolve) => {
-				setTimeout(() => {
-					console.warn('Dashboard API request timed out, using fallback data');
-					resolve([defaultOverview, []]);
-				}, API_TIMEOUT);
+			// Call APIs independently so one failure doesn't block the other
+			const [overviewData, historyData] = await Promise.allSettled([
+				apiClient.getDashboardOverview(true),
+				apiClient.getDashboardHistory(1, 10, true)
+			]).then((results) => {
+				// Handle each result independently
+				const overview = results[0].status === 'fulfilled' 
+					? results[0].value 
+					: defaultOverview;
+				
+				const history = results[1].status === 'fulfilled'
+					? results[1].value
+					: [];
+				
+				// Log errors but don't fail the whole dashboard
+				if (results[0].status === 'rejected') {
+					console.error('getDashboardOverview error:', results[0].reason);
+				}
+				if (results[1].status === 'rejected') {
+					console.error('getDashboardHistory error:', results[1].reason);
+				}
+				
+				return [overview, history];
 			});
-			
-			// Race between API call and timeout
-			const [overviewData, historyData] = await Promise.race([
-				apiPromise,
-				timeoutPromise
-			]) as [any, any];
 
 			// Ensure we have valid data
 			overview = overviewData || defaultOverview;
-			history = Array.isArray(historyData) ? historyData : (historyData?.data || []);
+			// historyData is already transformed by getOCRHistory/getDashboardHistory
+			history = Array.isArray(historyData) ? historyData : [];
 
 			// Update usage store
 			usageStore.setUsage({

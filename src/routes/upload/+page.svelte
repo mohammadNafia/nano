@@ -4,6 +4,7 @@
 	import { browser } from '$app/environment';
 	import { fade } from 'svelte/transition';
 	import { authStore, usageStore, historyStore } from '$lib/stores';
+	import { apiClient } from '$lib/api';
 	import Card from '$lib/components/ui/Card.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Modal from '$lib/components/ui/Modal.svelte';
@@ -223,45 +224,67 @@
 		result = null;
 		displayedText = '';
 
-		// Mock OCR processing with 2.5 second delay
-		await new Promise((resolve) => setTimeout(resolve, 2500));
+		try {
+			// Call real backend API for OCR processing
+			const response = await apiClient.ocr(file);
+			
+			// Extract text from response
+			const extractedText = response.extracted_text || response.text || '';
+			
+			if (!extractedText) {
+				throw new Error('No text extracted from the image');
+			}
 
-		// Generate mock OCR text
-		const mockText = `Invoice #1023  
+			result = extractedText;
+			editedText = extractedText;
+			
+			// Save to history store
+			historyStore.add({
+				text: extractedText,
+				file_name: response.original_filename || file.name,
+				file_type: file.type,
+				confidence_score: response.confidence_score || response.confidence || 0.95,
+				file_id: response.file_id,
+				processed_at: response.processed_at || new Date().toISOString()
+			});
 
-Date: Dec 05, 2025  
-
-Items:
-
-1. Web Design Services - $1,200.00
-
-2. Hosting (Annual) - $240.00
-
-Total Due: $1,440.00`;
-
-		result = mockText;
-		editedText = mockText;
-		isProcessing = false;
-
-		// Save to history store
-		historyStore.add({
-			text: mockText,
-			file_name: file.name,
-			file_type: file.type,
-			confidence_score: 0.95
-		});
-
-		// Increment usage
-		usageStore.incrementUsage();
-		
-		// Invalidate dashboard cache since we added a new upload
-		if (browser) {
-			const { apiClient } = await import('$lib/api');
+			// Increment usage
+			usageStore.incrementUsage();
+			
+			// Invalidate dashboard cache since we added a new upload
 			apiClient.invalidateDashboardCache();
-		}
 
-		// Start typing animation
-		startTypingAnimation(mockText);
+			// Start typing animation
+			startTypingAnimation(extractedText);
+			
+			// Show success message
+			showAlert('Success!', 'Text extracted successfully from your image.', 'success');
+		} catch (error: any) {
+			console.error('OCR processing error:', error);
+			
+			// Handle different error types
+			let errorMessage = 'Failed to extract text from the image. Please try again.';
+			
+			if (error.message) {
+				errorMessage = error.message;
+			} else if (error.response?.data?.message) {
+				errorMessage = error.response.data.message;
+			} else if (error.response?.status === 429) {
+				errorMessage = 'Rate limit exceeded. Please try again later.';
+			} else if (error.response?.status === 401) {
+				errorMessage = 'Please log in to use OCR features.';
+				showAuthModal = true;
+			} else if (error.response?.status === 403) {
+				errorMessage = 'Upload limit reached. Please upgrade your plan.';
+			}
+			
+			showAlert('Error', errorMessage, 'error');
+			
+			// Clear file on error
+			clearFile();
+		} finally {
+			isProcessing = false;
+		}
 	}
 
 	function startTypingAnimation(text: string) {
