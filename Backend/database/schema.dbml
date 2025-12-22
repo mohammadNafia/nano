@@ -1,0 +1,104 @@
+// OCR Vision Database Schema
+// Use this file at https://dbdiagram.io
+
+Project ocr_vision {
+  database_type: 'MySQL'
+  Note: 'OCR Image Extraction with Ollama LLaVA - Database Schema'
+}
+
+// =====================
+// AUTHENTICATION TABLES
+// =====================
+
+Table users {
+  id bigint [pk, increment]
+  name varchar(255) [not null]
+  email varchar(255) [unique, not null]
+  email_verified_at timestamp [null]
+  password varchar(255) [not null]
+  remember_token varchar(100) [null]
+  created_at timestamp [null]
+  updated_at timestamp [null]
+  
+  Note: 'User accounts for JWT authentication'
+}
+
+
+// =====================
+// OCR CORE TABLES
+// =====================
+
+Table ocr_files {
+  id bigint [pk, increment]
+  user_id bigint [null, ref: > users.id]
+  original_filename varchar(255) [not null]
+  stored_filename varchar(255) [not null]
+  file_path varchar(255) [not null]
+  file_hash varchar(64) [unique, not null, note: 'SHA-256 hash for caching']
+  mime_type varchar(255) [not null]
+  file_size bigint [not null, note: 'Size in bytes']
+  extracted_text longtext [null, note: 'OCR extracted text content']
+  ocr_processed boolean [default: false]
+  processed_at timestamp [null]
+  ip_address varchar(45) [null]
+  created_at timestamp [null]
+  updated_at timestamp [null]
+  
+  indexes {
+    file_hash
+  }
+  
+  Note: 'Stores uploaded images and their extracted OCR text'
+}
+
+Table upload_logs {
+  id bigint [pk, increment]
+  user_id bigint [null, ref: > users.id]
+  ocr_file_id bigint [null, ref: > ocr_files.id]
+  ip_address varchar(45) [not null]
+  original_filename varchar(255) [not null]
+  file_hash varchar(64) [null]
+  file_size bigint [not null]
+  status enum('pending', 'processing', 'completed', 'failed', 'cached') [default: 'pending']
+  from_cache boolean [default: false]
+  error_message text [null]
+  user_agent varchar(255) [null]
+  processing_time_ms int [null, note: 'Processing time in milliseconds']
+  created_at timestamp [null]
+  updated_at timestamp [null]
+  
+  indexes {
+    (ip_address, created_at)
+  }
+  
+  Note: 'Logs all upload attempts with status tracking'
+}
+
+Table rate_limits {
+  id bigint [pk, increment]
+  ip_address varchar(45) [not null]
+  action varchar(255) [default: 'upload']
+  attempts int [default: 0]
+  max_attempts int [default: 5]
+  window_start timestamp [null]
+  blocked_until timestamp [null]
+  created_at timestamp [null]
+  updated_at timestamp [null]
+  
+  indexes {
+    ip_address
+    (ip_address, action) [unique]
+  }
+  
+  Note: 'IP-based rate limiting for abuse prevention'
+}
+
+// User -> OcrFiles (one-to-many)
+// A user can have many OCR files
+
+// User -> UploadLogs (one-to-many)  
+// A user can have many upload logs
+
+// OcrFile -> UploadLogs (one-to-many)
+// An OCR file can have multiple upload log entries (re-uploads hit cache)
+
